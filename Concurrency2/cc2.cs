@@ -26,6 +26,7 @@ namespace RushHourSolver
         static Trie visited; // A Trie data structure that keeps track of visited positions
 
         static List<Solution> foundSolutions; // If a solution is found, it is stored here
+        static Solution shortSolution;
         static bool solveMode; // Stores what kind of output we want
         static int depth;
 
@@ -43,7 +44,7 @@ namespace RushHourSolver
             // By default, the solution is "no solution"
             foundSolutions = new List<Solution>();
             foundSolutions.Add(new NoSolution());
-
+            shortSolution = new NoSolution();
             // Place the starting position in the queue
             q.Enqueue(Tuple.Create(vehicleStartPos, (Solution)new EmptySolution()));
             AddNode(vehicleStartPos);
@@ -85,18 +86,14 @@ namespace RushHourSolver
                             foreach (Tuple<byte[], Solution> next in Sucessors(currentState))
                             {
                                 next.Item2.depth = currentState.Item2.depth + 1;
-                                if (next.Item1[targetVehicle] == goal)
+                                if (next.Item2.depth < depth && next.Item1[targetVehicle] == goal)
                                 {
-                                    lock (depthLockObject)
-                                    {
-                                        if (next.Item2.depth < depth)
-                                        {
-                                            depth = next.Item2.depth;
-                                            foundSolutions.Add(next.Item2);
-                                        }
-                                    }
+                                    Interlocked.Exchange(ref depth, next.Item2.depth);
+                                    shortSolution = next.Item2;
+                                    //depth = next.Item2.depth;
+                                    foundSolutions.Add(next.Item2);
+                                    break;
                                 }
-                                // If we haven't seen this node before, add it to the Trie and Queue to be expanded
                                 if (next.Item2.depth < depth)
                                     q.Enqueue(next);
                             }
@@ -104,23 +101,7 @@ namespace RushHourSolver
                         }
                     });
                 }
-                //q.TryDequeue(out currentState) ? currentState : null;
-
-                // Generate sucessors, and push them on to the queue if they haven't been seen before
-                /*foreach (Tuple<byte[], Solution> next in Sucessors(currentState))
-                {
-                    // Did we reach the goal?
-                    if (next.Item1[targetVehicle] == goal)
-                    {
-                        q.Clear();
-                        foundSolution = next.Item2;
-                        break;
-                    }
-
-                    // If we haven't seen this node before, add it to the Trie and Queue to be expanded
-                    if (!AddNode(next.Item1))
-                        q.Enqueue(next);
-                }*/
+                
             
             Solution shortest = new NoSolution();
             foreach (Solution sol in foundSolutions)
@@ -131,7 +112,7 @@ namespace RushHourSolver
                     shortest = sol;
                 }
             }
-            Console.WriteLine(shortest);
+            Console.WriteLine(shortSolution);
             Console.ReadLine();
         }
 
