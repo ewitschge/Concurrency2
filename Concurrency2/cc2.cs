@@ -103,17 +103,45 @@ namespace RushHourSolver
                 }
                 
             
-            Solution shortest = new NoSolution();
-            foreach (Solution sol in foundSolutions)
+                        Solution shortest = new NoSolution();
+            shortest.depth = int.MaxValue;
+
+            if (foundSolutions.Count > minimumSolutions)
             {
-                //Console.WriteLine(sol);
-                if (sol != null && sol.depth < shortest.depth)
+                Parallel.ForEach(foundSolutions, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, (Solution sol) =>
                 {
-                    shortest = sol;
+                    if (sol.depth < shortest.depth)
+                    {
+                        shortest = sol;
+                    }
+                });
+            }
+            else
+            {
+                foreach (Solution sol in foundSolutions)
+                {
+                    if (sol != null && sol.depth < shortest.depth)
+                    {
+                        shortest = sol;       
+                    }
                 }
+                /*
+                foreach (Solution sol in foundSolutions)
+                {
+                    //Console.WriteLine(sol);
+                    if (sol != null && sol.depth < shortest.depth)
+                    {
+                        //Console.WriteLine(sol);
+                        if (sol.depth < shortest.depth)
+                        {
+                            shortest = sol;
+                        }
+                    }
+                }*/
             }
             Console.WriteLine(shortSolution);
             Console.ReadLine();
+        }
         }
 
         // Generates the sucessors of a state
