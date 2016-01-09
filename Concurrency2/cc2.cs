@@ -11,7 +11,7 @@ namespace RushHourSolver
     static class Program
     {
         static int targetVehicle, goal; // Gives the number of the vehicle and the position it should be moved to
-        static Object lockObject = new Object();
+        static Object depthLockObject = new Object();
         static Object nodeLockObject = new Object();
         static int numHorVec; // Gives the number of horizontally placed vehicles, vehicles 0-(numHorVec-1) are horizontal
         static byte[] vehicleLocs; // Gives the 0-based index of the row or column the vehicle is
@@ -49,6 +49,7 @@ namespace RushHourSolver
             AddNode(vehicleStartPos);
 
             // Do BFS
+            /*
             while (q.Count > 0)
             {
                 Tuple<byte[], Solution> currentState = null;
@@ -66,21 +67,42 @@ namespace RushHourSolver
                                 {
                                     depth = next.Item2.depth;
                                 }
-
                             }
 
                         // If we haven't seen this node before, add it to the Trie and Queue to be expanded
+                        q.Enqueue(next);
 
-                        if (!AddNode(next.Item1))
-                            {
-                                q.Enqueue(next);
-                            /* else
-                             {
-                                 Console.WriteLine("already visited");
-                             } */
-                            }
                         });
                     }
+                }
+                */
+                while (q.Count > 0)
+                {
+                    Parallel.For(0, System.Environment.ProcessorCount, (i, state) => {
+                        Tuple<byte[], Solution> currentState = null;
+                        if (q.TryDequeue(out currentState))
+                        {
+                            foreach (Tuple<byte[], Solution> next in Sucessors(currentState))
+                            {
+                                next.Item2.depth = currentState.Item2.depth + 1;
+                                if (next.Item1[targetVehicle] == goal)
+                                {
+                                    lock (depthLockObject)
+                                    {
+                                        if (next.Item2.depth < depth)
+                                        {
+                                            depth = next.Item2.depth;
+                                            foundSolutions.Add(next.Item2);
+                                        }
+                                    }
+                                }
+                                // If we haven't seen this node before, add it to the Trie and Queue to be expanded
+                                if (next.Item2.depth < depth)
+                                    q.Enqueue(next);
+                            }
+
+                        }
+                    });
                 }
                 //q.TryDequeue(out currentState) ? currentState : null;
 
@@ -99,12 +121,12 @@ namespace RushHourSolver
                     if (!AddNode(next.Item1))
                         q.Enqueue(next);
                 }*/
-            }
+            
             Solution shortest = new NoSolution();
             foreach (Solution sol in foundSolutions)
             {
                 //Console.WriteLine(sol);
-                if (sol.depth < shortest.depth)
+                if (sol != null && sol.depth < shortest.depth)
                 {
                     shortest = sol;
                 }
@@ -319,13 +341,16 @@ namespace RushHourSolver
                     else
                         newT = new Trie(vehicleRows.GetLength(0) - vehicleLengths[i + 1] + 1);
 
-                    // Insert the new node in to the trie
+                    // Insert the new node in to the trie after aquiring lock
                     lock (nodeLockObject)
                     {
                         if (cur.Leaves[node[i]] == null)
                         {
                             cur.Leaves[node[i]] = newT;
-                            if (i == node.Length - 1) return true;
+                            if (i == node.Length - 1)
+                            {
+                                return true;
+                            }
                             cur = newT;
                         }
                         else
@@ -335,7 +360,6 @@ namespace RushHourSolver
                 else // The desired node already exists, we do not need to create it and store it one level deeper
                     cur = cur.Leaves[node[i]];
             }
-            //Console.WriteLine("returning false in addnode");
             return false;
         }
 
